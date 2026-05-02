@@ -1,8 +1,12 @@
-// ============================================================
+ // ============================================================
 //  ReadEasy – Accessible Reading Assistant
-//  Loads config from .env (served via local server)
+//  All IBM Cloud integrations live here:
+//   - Watson NLU  (summarization + topics)
+//   - Text to Speech (audio playback)
+//   - Cloudant  (library storage)
 // ============================================================
 
+// -------- State --------
 const state = {
   rawText: '',
   summaryText: '',
@@ -14,10 +18,26 @@ const state = {
   currentDocId: null,
   currentRev: null,
   allLibraryItems: [],
-  envConfig: null, // <-- stores .env values
+  envConfig: null,
 };
 
-// Parse .env file at startup
+// -------- Kick things off on page load --------
+window.addEventListener('DOMContentLoaded', async () => {
+  state.envConfig = await loadEnvConfig();
+  loadLibrary();
+  setupPasteCounter();
+  
+  // Restore high contrast preference
+  if (localStorage.getItem('highContrast') === 'true') {
+    document.body.classList.add('high-contrast');
+  }
+});
+
+
+// ============================================================
+//  CONFIG – Load from .env only
+// ============================================================
+
 async function loadEnvConfig() {
   try {
     const res = await fetch('/.env');
@@ -42,23 +62,21 @@ async function loadEnvConfig() {
       cloudantDb: parsed.CLOUDANT_DB || 'reading-library'
     };
   } catch (e) {
-    console.warn('⚠️ .env not loaded. Using localStorage fallback.');
+    console.warn('⚠️ .env not loaded. Using hardcoded fallback.');
     return null;
   }
 }
 
-// Override getConfig to prefer .env
 function getConfig() {
-  return state.envConfig || (JSON.parse(localStorage.getItem('readEasySettings')) || {});
+  if (state.envConfig &&
+      state.envConfig.nluKey &&
+      state.envConfig.nluKey !== 'your_nlu_api_key_here') {
+    return state.envConfig;
+  }
+  return {};
 }
 
-// Initialize on load
-window.addEventListener('DOMContentLoaded', async () => {
-  state.envConfig = await loadEnvConfig();
-  loadSettings(); // still loads UI fields if .env missing
-  loadLibrary();
-  setupPasteCounter();
-});
+
 // ============================================================
 //  NAVIGATION
 // ============================================================
@@ -72,7 +90,6 @@ function showView(name, el) {
 
   if (name === 'library') loadLibrary();
 
-  // Close sidebar on mobile after navigation
   document.getElementById('sidebar').classList.remove('open');
 }
 
@@ -224,7 +241,7 @@ async function analyzeText() {
 
   const cfg = getConfig();
   if (!cfg.nluKey || !cfg.nluUrl) {
-    showToast('⚠️ Set your Watson NLU credentials in Settings first.');
+    showToast('⚠️ NLU credentials missing. Check your .env file.');
     return;
   }
 
@@ -297,7 +314,6 @@ async function callWatsonNLU(text, cfg) {
 
   const base = cfg.nluUrl.replace(/\/$/, '');
   const url = `${base}/v1/analyze?version=2022-04-07`;
-// No change needed for NLU
 
   const response = await fetch(url, {
     method: 'POST',
@@ -366,7 +382,7 @@ async function listenToFull() {
 async function startPlayback(text, label) {
   const cfg = getConfig();
   if (!cfg.ttsKey || !cfg.ttsUrl) {
-    showToast('⚠️ Set your TTS credentials in Settings first.');
+    showToast('⚠️ TTS credentials missing. Check your .env file.');
     return;
   }
 
@@ -505,57 +521,15 @@ function formatTime(sec) {
 
 
 // ============================================================
-//  IBM CLOUDANT – LIBRARY STORAGE
+//  LOCAL STORAGE – LIBRARY (no Cloudant needed)
 // ============================================================
 
-async function getCloudantHeaders(cfg) {
-  // Your Cloudant is in au-syd region
-  // Use IAM token authentication
-  try {
-    const tokenRes = await fetch('https://iam.cloud.ibm.com/identity/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: 'grant_type=urn:ibm:params:oauth:grant-type:apikey&apikey=' + cfg.cloudantKey
-    });
-    
-    if (!tokenRes.ok) {
-      throw new Error('Failed to get IAM token');
-    }
-    
-    const tokenData = await tokenRes.json();
-    const token = tokenData.access_token;
-    
-    return {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + token
-    };
-  } catch (e) {
-    console.error('Auth error:', e);
-    throw e;
-  }
-}
-
-function cloudantBase(cfg) {
-  // Use clean host URL, no credentials
-  const url = cfg.cloudantUrl.replace(/\/$/, '');
-  return `${url}/${cfg.cloudantDb}`;
-}
-
-async function ensureDbExists(cfg) {
-  const url = cloudantBase(cfg);
-  const check = await fetch(url, { headers: getCloudantHeaders(cfg) });
-  if (check.status === 404) {
-    await fetch(url, { method: 'PUT', headers: getCloudantHeaders(cfg) });
-  }
-}
-
- async function saveToLibrary() {
+async function saveToLibrary() {
   if (!state.rawText) {
     showToast('Nothing to save yet!');
     return;
   }
 
-  // Save to local storage instead of Cloudant
   try {
     const library = JSON.parse(localStorage.getItem('readEasyLibrary') || '[]');
     
@@ -577,12 +551,13 @@ async function ensureDbExists(cfg) {
     
     document.getElementById('saveBtn').textContent = '✅ Saved!';
     showToast('📚 Saved to your library!');
+    updateLibraryCount();
   } catch (err) {
     showToast('❌ Could not save: ' + err.message);
   }
 }
 
- async function updatePlaybackPosition(currentTime, duration) {
+async function updatePlaybackPosition(currentTime, duration) {
   if (!state.currentDocId) return;
   
   try {
@@ -598,7 +573,7 @@ async function ensureDbExists(cfg) {
   }
 }
 
- async function loadLibrary() {
+async function loadLibrary() {
   try {
     const library = JSON.parse(localStorage.getItem('readEasyLibrary') || '[]');
     library.sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt));
@@ -630,7 +605,7 @@ function renderLibrary(articles) {
 
     const item = document.createElement('div');
     item.className = 'library-item';
-    item.dataset.docId = doc._id;
+    item.dataset.docId = doc.id;
 
     item.innerHTML = `
       <div class="lib-info">
@@ -641,10 +616,10 @@ function renderLibrary(articles) {
         </div>
       </div>
       <div class="lib-actions">
-        <button class="btn btn-secondary btn-sm" onclick="resumeFromLibrary('${doc._id}')">
+        <button class="btn btn-secondary btn-sm" onclick="resumeFromLibrary('${doc.id}')">
           ${progress > 0 ? '▶ Resume' : '▶ Listen'}
         </button>
-        <button class="btn btn-outline btn-sm" onclick="deleteFromLibrary('${doc._id}', '${doc._rev}')" title="Delete">
+        <button class="btn btn-outline btn-sm" onclick="deleteFromLibrary('${doc.id}')" title="Delete">
           🗑️
         </button>
       </div>
@@ -693,7 +668,7 @@ async function resumeFromLibrary(docId) {
   }
 }
 
- async function deleteFromLibrary(docId) {
+async function deleteFromLibrary(docId) {
   if (!confirm('Delete this article from your library?')) return;
   
   try {
@@ -703,58 +678,9 @@ async function resumeFromLibrary(docId) {
     state.allLibraryItems = filtered;
     renderLibrary(filtered);
     showToast('🗑️ Deleted.');
+    updateLibraryCount();
   } catch (err) {
     showToast('❌ Could not delete: ' + err.message);
-  }
-}
-
-
-// ============================================================
-//  SETTINGS
-// ============================================================
-
-function saveSettings() {
-  const settings = {
-    nluKey: document.getElementById('nluKey').value.trim(),
-    nluUrl: document.getElementById('nluUrl').value.trim(),
-    ttsKey: document.getElementById('ttsKey').value.trim(),
-    ttsUrl: document.getElementById('ttsUrl').value.trim(),
-    cloudantKey: document.getElementById('cloudantKey').value.trim(),
-    cloudantUrl: document.getElementById('cloudantUrl').value.trim(),
-    cloudantDb: document.getElementById('cloudantDb').value.trim() || 'reading-library',
-  };
-
-  localStorage.setItem('readEasySettings', JSON.stringify(settings));
-  showToast('✅ Settings saved!');
-}
-
-function loadSettings() {
-  const raw = localStorage.getItem('readEasySettings');
-  if (!raw) return;
-
-  try {
-    const s = JSON.parse(raw);
-    if (s.nluKey) document.getElementById('nluKey').value = s.nluKey;
-    if (s.nluUrl) document.getElementById('nluUrl').value = s.nluUrl;
-    if (s.ttsKey) document.getElementById('ttsKey').value = s.ttsKey;
-    if (s.ttsUrl) document.getElementById('ttsUrl').value = s.ttsUrl;
-    if (s.cloudantKey) document.getElementById('cloudantKey').value = s.cloudantKey;
-    if (s.cloudantUrl) document.getElementById('cloudantUrl').value = s.cloudantUrl;
-    if (s.cloudantDb) document.getElementById('cloudantDb').value = s.cloudantDb;
-  } catch (e) {
-    console.warn('Could not parse saved settings');
-  }
-
-  if (localStorage.getItem('highContrast') === 'true') {
-    document.body.classList.add('high-contrast');
-  }
-}
-
-function getConfig() {
-  try {
-    return JSON.parse(localStorage.getItem('readEasySettings')) || {};
-  } catch {
-    return {};
   }
 }
 
@@ -788,21 +714,15 @@ function escapeHtml(str) {
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
   }[c]));
 }
-// Show library count in sidebar
+
 function updateLibraryCount() {
   const library = JSON.parse(localStorage.getItem('readEasyLibrary') || '[]');
   const navItem = document.querySelector('[data-view="library"]');
-  if (library.length > 0) {
-    navItem.innerHTML = `<span class="nav-icon">📚</span> My Library (${library.length})`;
+  if (navItem) {
+    if (library.length > 0) {
+      navItem.innerHTML = `<span class="nav-icon">📚</span> My Library (${library.length})`;
+    } else {
+      navItem.innerHTML = `<span class="nav-icon">📚</span> My Library`;
+    }
   }
 }
-
-// Call it after saving/deleting
-// In saveToLibrary, add this line after saving:
-updateLibraryCount();
-
-// In deleteFromLibrary, add this line after deleting:
-updateLibraryCount();
-
-// On page load, add this:
-updateLibraryCount();

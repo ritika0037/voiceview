@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -21,9 +21,6 @@
       </a></li>
       <li><a href="#" class="nav-item" data-view="library" onclick="showView('library', this)">
         <span class="nav-icon">📚</span> My Library
-      </a></li>
-      <li><a href="#" class="nav-item" data-view="settings" onclick="showView('settings', this)">
-        <span class="nav-icon">⚙️</span> Settings
       </a></li>
     </ul>
     <div class="sidebar-bottom">
@@ -228,61 +225,6 @@
           <p>📭 Nothing here yet.</p>
           <p>Go to Home, analyze an article, and save it!</p>
         </div>
-      </div>
-    </div>
-
-    <!-- SETTINGS VIEW -->
-    <div id="view-settings" class="view">
-      <div class="page-header">
-        <h1>Settings ⚙️</h1>
-        <p class="subtitle">Configure your IBM Cloud API credentials here.</p>
-      </div>
-
-      <div class="card settings-card">
-        <h2>IBM Watson NLU</h2>
-        <div class="field-group">
-          <label class="field-label">API Key</label>
-          <input type="password" class="text-field" id="nluKey" placeholder="Paste your NLU API key" />
-        </div>
-        <div class="field-group">
-          <label class="field-label">Service URL</label>
-          <input type="text" class="text-field" id="nluUrl" placeholder="https://api.us-south.natural-language-understanding.watson.cloud.ibm.com/..." />
-        </div>
-      </div>
-
-      <div class="card settings-card">
-        <h2>IBM Text to Speech</h2>
-        <div class="field-group">
-          <label class="field-label">API Key</label>
-          <input type="password" class="text-field" id="ttsKey" placeholder="Paste your TTS API key" />
-        </div>
-        <div class="field-group">
-          <label class="field-label">Service URL</label>
-          <input type="text" class="text-field" id="ttsUrl" placeholder="https://api.us-south.text-to-speech.watson.cloud.ibm.com/..." />
-        </div>
-      </div>
-
-      <div class="card settings-card">
-        <h2>IBM Cloudant</h2>
-        <div class="field-group">
-          <label class="field-label">API Key</label>
-          <input type="password" class="text-field" id="cloudantKey" placeholder="Paste your Cloudant API key" />
-        </div>
-        <div class="field-group">
-          <label class="field-label">Cloudant URL</label>
-          <input type="text" class="text-field" id="cloudantUrl" placeholder="https://your-instance.cloudantnosqldb.appdomain.cloud" />
-        </div>
-        <div class="field-group">
-          <label class="field-label">Database Name</label>
-          <input type="text" class="text-field" id="cloudantDb" placeholder="reading-library" value="reading-library" />
-        </div>
-      </div>
-
-      <button class="btn btn-primary btn-large" onclick="saveSettings()">
-        💾 Save Settings
-      </button>
-      <div class="settings-note">
-        <p>🔒 Your keys are stored only in your browser's localStorage. Nothing is sent anywhere else.</p>
       </div>
     </div>
 
