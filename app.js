@@ -18,62 +18,33 @@ const state = {
   currentDocId: null,
   currentRev: null,
   allLibraryItems: [],
-  envConfig: null,
+  config: null,
 };
 
-// -------- Kick things off on page load --------
-window.addEventListener('DOMContentLoaded', async () => {
-  state.envConfig = await loadEnvConfig();
+// -------- Hardcoded Config --------
+const APP_CONFIG = {
+  nluKey: 'L8juJoRV4QTL7vVUQrHmVpJaOvizFqkees6S0A2hCSV_',
+  nluUrl: 'https://api.au-syd.natural-language-understanding.watson.cloud.ibm.com/instances/90fd6309-d287-4dac-a2bb-11a20bc64382',
+  ttsKey: 'ABx0OWKgj96MpItuRvQyUFSl9hGPCrh4e1m8g2hOwTup',
+  ttsUrl: 'https://api.au-syd.text-to-speech.watson.cloud.ibm.com/instances/b486fc8d-e3cf-4ef9-b598-ecd81533f74f',
+  cloudantKey: 'yLGsodAWC_skYvyPSqOqLWaD7p_gfmYfSckBdcC6ThS8',
+  cloudantUrl: 'https://265de2bd-7d50-422d-92b9-5e9e998cef72-bluemix.cloudantnosqldb.appdomain.cloud',
+  cloudantDb: 'reading-library'
+};
+
+// -------- Init --------
+window.addEventListener('DOMContentLoaded', () => {
+  state.config = APP_CONFIG;
   loadLibrary();
   setupPasteCounter();
   
-  // Restore high contrast preference
   if (localStorage.getItem('highContrast') === 'true') {
     document.body.classList.add('high-contrast');
   }
 });
 
-
-// ============================================================
-//  CONFIG – Load from .env only
-// ============================================================
-
-async function loadEnvConfig() {
-  try {
-    const res = await fetch('/.env');
-    if (!res.ok) throw new Error('No .env found');
-    const text = await res.text();
-    const parsed = {};
-    
-    text.split('\n').forEach(line => {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith('#')) return;
-      const [key, ...val] = trimmed.split('=');
-      if (key) parsed[key.trim()] = val.join('=').trim().replace(/^["']|["']$/g, '');
-    });
-
-    return {
-      nluKey: parsed.NLU_KEY || '',
-      nluUrl: parsed.NLU_URL || '',
-      ttsKey: parsed.TTS_KEY || '',
-      ttsUrl: parsed.TTS_URL || '',
-      cloudantKey: parsed.CLOUDANT_KEY || '',
-      cloudantUrl: parsed.CLOUDANT_URL || '',
-      cloudantDb: parsed.CLOUDANT_DB || 'reading-library'
-    };
-  } catch (e) {
-    console.warn('⚠️ .env not loaded. Using hardcoded fallback.');
-    return null;
-  }
-}
-
 function getConfig() {
-  if (state.envConfig &&
-      state.envConfig.nluKey &&
-      state.envConfig.nluKey !== 'your_nlu_api_key_here') {
-    return state.envConfig;
-  }
-  return {};
+  return state.config || APP_CONFIG;
 }
 
 
@@ -240,10 +211,6 @@ async function analyzeText() {
   }
 
   const cfg = getConfig();
-  if (!cfg.nluKey || !cfg.nluUrl) {
-    showToast('⚠️ NLU credentials missing. Check your .env file.');
-    return;
-  }
 
   state.articleTitle = document.getElementById('articleTitle').value.trim()
     || 'Untitled Article';
@@ -381,10 +348,6 @@ async function listenToFull() {
 
 async function startPlayback(text, label) {
   const cfg = getConfig();
-  if (!cfg.ttsKey || !cfg.ttsUrl) {
-    showToast('⚠️ TTS credentials missing. Check your .env file.');
-    return;
-  }
 
   showLoading('Generating audio… hang tight!');
 
@@ -521,7 +484,7 @@ function formatTime(sec) {
 
 
 // ============================================================
-//  LOCAL STORAGE – LIBRARY (no Cloudant needed)
+//  LOCAL STORAGE – LIBRARY
 // ============================================================
 
 async function saveToLibrary() {
