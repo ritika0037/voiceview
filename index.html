@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ReadEasy – Your Reading Assistant</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <!-- Sidebar Navigation -->
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <span class="logo-icon">👁️</span>
+      <span class="logo-text">ReadEasy</span>
+    </div>
+    <ul class="nav-links">
+      <li><a href="#" class="nav-item active" data-view="home" onclick="showView('home', this)">
+        <span class="nav-icon">🏠</span> Home
+      </a></li>
+      <li><a href="#" class="nav-item" data-view="library" onclick="showView('library', this)">
+        <span class="nav-icon">📚</span> My Library
+      </a></li>
+      <li><a href="#" class="nav-item" data-view="settings" onclick="showView('settings', this)">
+        <span class="nav-icon">⚙️</span> Settings
+      </a></li>
+    </ul>
+    <div class="sidebar-bottom">
+      <button class="contrast-toggle" onclick="toggleContrast()" title="Toggle High Contrast">
+        🌗 High Contrast
+      </button>
+    </div>
+  </nav>
+
+  <!-- Mobile Top Bar -->
+  <header class="mobile-header">
+    <button class="hamburger" onclick="toggleSidebar()">☰</button>
+    <span class="mobile-title">👁️ ReadEasy</span>
+    <button class="contrast-toggle-mobile" onclick="toggleContrast()">🌗</button>
+  </header>
+
+  <!-- Main Content Area -->
+  <main class="main-content" id="mainContent">
+
+    <!-- HOME VIEW -->
+    <div id="view-home" class="view active">
+      <div class="page-header">
+        <h1>Hey there 👋</h1>
+        <p class="subtitle">Paste an article or upload a file — I'll summarize it and read it aloud for you.</p>
+      </div>
+
+      <!-- Upload Section -->
+      <div class="card upload-card">
+        <div class="card-header">
+          <h2>📄 Add Your Text</h2>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tab-group">
+          <button class="tab active" onclick="switchTab('paste', this)">Paste Text</button>
+          <button class="tab" onclick="switchTab('upload', this)">Upload File</button>
+        </div>
+
+        <!-- Paste Tab -->
+        <div id="tab-paste" class="tab-content active">
+          <textarea
+            id="pasteInput"
+            class="text-input"
+            placeholder="Paste your article here... doesn't matter how long it is, I've got you."
+            aria-label="Paste your text here"
+            rows="10"
+          ></textarea>
+          <div class="char-count" id="charCount">0 characters</div>
+        </div>
+
+        <!-- Upload Tab -->
+        <div id="tab-upload" class="tab-content">
+          <div class="drop-zone" id="dropZone"
+            ondrop="handleDrop(event)"
+            ondragover="handleDragOver(event)"
+            ondragleave="handleDragLeave(event)"
+            onclick="document.getElementById('fileInput').click()"
+            role="button"
+            tabindex="0"
+            aria-label="Drop zone for file upload"
+          >
+            <div class="drop-icon">📂</div>
+            <p>Drop a <strong>.txt</strong> or <strong>.pdf</strong> file here</p>
+            <p class="drop-sub">or click to browse</p>
+            <input type="file" id="fileInput" accept=".txt,.pdf" hidden onchange="handleFileUpload(event)" />
+          </div>
+          <div id="fileStatus" class="file-status hidden"></div>
+        </div>
+
+        <!-- Article Title -->
+        <div class="field-group">
+          <label for="articleTitle" class="field-label">Give it a title (optional)</label>
+          <input type="text" id="articleTitle" class="text-field" placeholder="e.g. Morning News Article" />
+        </div>
+
+        <!-- Analyze Button -->
+        <button class="btn btn-primary btn-large" onclick="analyzeText()" id="analyzeBtn">
+          <span class="btn-icon">🔍</span> Analyze & Summarize
+        </button>
+      </div>
+
+      <!-- Summary Section (hidden until analysis) -->
+      <div class="card summary-card hidden" id="summaryCard">
+        <div class="card-header">
+          <h2>📋 Here's the gist</h2>
+          <span class="badge" id="readTimeLabel">~5 min read</span>
+        </div>
+
+        <div class="summary-box">
+          <p id="summaryText" class="summary-content"></p>
+        </div>
+
+        <div class="topics-section">
+          <h3>Key Topics</h3>
+          <div class="topic-tags" id="topicTags"></div>
+        </div>
+
+        <!-- Voice Picker -->
+        <div class="voice-section">
+          <h3>Choose a Voice</h3>
+          <div class="voice-grid" id="voiceGrid">
+            <button class="voice-card active" data-voice="en-US_AllisonV3Voice" onclick="selectVoice(this)">
+              <span class="voice-avatar">👩</span>
+              <span class="voice-name">Allison</span>
+              <span class="voice-tag">Warm & Natural</span>
+            </button>
+            <button class="voice-card" data-voice="en-US_MichaelV3Voice" onclick="selectVoice(this)">
+              <span class="voice-avatar">👨</span>
+              <span class="voice-name">Michael</span>
+              <span class="voice-tag">Clear & Steady</span>
+            </button>
+            <button class="voice-card" data-voice="en-US_EmilyV3Voice" onclick="selectVoice(this)">
+              <span class="voice-avatar">👩‍🦱</span>
+              <span class="voice-name">Emily</span>
+              <span class="voice-tag">Bright & Friendly</span>
+            </button>
+            <button class="voice-card" data-voice="en-GB_KateV3Voice" onclick="selectVoice(this)">
+              <span class="voice-avatar">🎙️</span>
+              <span class="voice-name">Kate</span>
+              <span class="voice-tag">British English</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Listen Buttons -->
+        <div class="action-row">
+          <button class="btn btn-secondary" onclick="listenToSummary()" id="listenSummaryBtn">
+            <span class="btn-icon">▶️</span> Listen to Summary
+          </button>
+          <button class="btn btn-primary" onclick="listenToFull()" id="listenFullBtn">
+            <span class="btn-icon">🎧</span> Listen to Full Article
+          </button>
+        </div>
+      </div>
+
+      <!-- Audio Player -->
+      <div class="card player-card hidden" id="playerCard">
+        <div class="card-header">
+          <h2>🎧 Now Playing</h2>
+          <span class="now-playing-title" id="nowPlayingTitle">Article</span>
+        </div>
+
+        <div class="player-body">
+          <!-- Progress Bar -->
+          <div class="progress-container">
+            <span class="time-label" id="currentTime">0:00</span>
+            <div class="progress-track" id="progressTrack" onclick="seekAudio(event)" role="slider" aria-label="Audio progress">
+              <div class="progress-fill" id="progressFill"></div>
+              <div class="progress-thumb" id="progressThumb"></div>
+            </div>
+            <span class="time-label" id="totalTime">0:00</span>
+          </div>
+
+          <!-- Controls -->
+          <div class="player-controls">
+            <button class="ctrl-btn" onclick="skipBack()" title="Go back 15 seconds" aria-label="Skip back 15 seconds">
+              ⏪ 15s
+            </button>
+            <button class="ctrl-btn play-pause" id="playPauseBtn" onclick="togglePlay()" aria-label="Play or pause">
+              ▶️
+            </button>
+            <button class="ctrl-btn" onclick="skipForward()" title="Skip 15 seconds ahead" aria-label="Skip forward 15 seconds">
+              15s ⏩
+            </button>
+          </div>
+
+          <!-- Speed + Save -->
+          <div class="player-extras">
+            <div class="speed-group">
+              <label class="field-label">Speed</label>
+              <div class="speed-btns">
+                <button class="speed-btn" onclick="setSpeed(0.75)">0.75×</button>
+                <button class="speed-btn active" onclick="setSpeed(1)">1×</button>
+                <button class="speed-btn" onclick="setSpeed(1.5)">1.5×</button>
+                <button class="speed-btn" onclick="setSpeed(2)">2×</button>
+              </div>
+            </div>
+            <button class="btn btn-outline" onclick="saveToLibrary()" id="saveBtn">
+              💾 Save to Library
+            </button>
+          </div>
+        </div>
+
+        <audio id="audioPlayer" onended="onAudioEnd()" ontimeupdate="updateProgress()"></audio>
+      </div>
+    </div>
+
+    <!-- LIBRARY VIEW -->
+    <div id="view-library" class="view">
+      <div class="page-header">
+        <h1>My Library 📚</h1>
+        <p class="subtitle">Everything you've saved — pick up right where you left off.</p>
+      </div>
+
+      <div class="library-toolbar">
+        <input type="text" class="search-field" placeholder="🔍 Search your articles..." oninput="filterLibrary(this.value)" />
+        <button class="btn btn-outline btn-sm" onclick="loadLibrary()">↻ Refresh</button>
+      </div>
+
+      <div id="libraryGrid" class="library-grid">
+        <div class="empty-state" id="libraryEmpty">
+          <p>📭 Nothing here yet.</p>
+          <p>Go to Home, analyze an article, and save it!</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETTINGS VIEW -->
+    <div id="view-settings" class="view">
+      <div class="page-header">
+        <h1>Settings ⚙️</h1>
+        <p class="subtitle">Configure your IBM Cloud API credentials here.</p>
+      </div>
+
+      <div class="card settings-card">
+        <h2>IBM Watson NLU</h2>
+        <div class="field-group">
+          <label class="field-label">API Key</label>
+          <input type="password" class="text-field" id="nluKey" placeholder="Paste your NLU API key" />
+        </div>
+        <div class="field-group">
+          <label class="field-label">Service URL</label>
+          <input type="text" class="text-field" id="nluUrl" placeholder="https://api.us-south.natural-language-understanding.watson.cloud.ibm.com/..." />
+        </div>
+      </div>
+
+      <div class="card settings-card">
+        <h2>IBM Text to Speech</h2>
+        <div class="field-group">
+          <label class="field-label">API Key</label>
+          <input type="password" class="text-field" id="ttsKey" placeholder="Paste your TTS API key" />
+        </div>
+        <div class="field-group">
+          <label class="field-label">Service URL</label>
+          <input type="text" class="text-field" id="ttsUrl" placeholder="https://api.us-south.text-to-speech.watson.cloud.ibm.com/..." />
+        </div>
+      </div>
+
+      <div class="card settings-card">
+        <h2>IBM Cloudant</h2>
+        <div class="field-group">
+          <label class="field-label">API Key</label>
+          <input type="password" class="text-field" id="cloudantKey" placeholder="Paste your Cloudant API key" />
+        </div>
+        <div class="field-group">
+          <label class="field-label">Cloudant URL</label>
+          <input type="text" class="text-field" id="cloudantUrl" placeholder="https://your-instance.cloudantnosqldb.appdomain.cloud" />
+        </div>
+        <div class="field-group">
+          <label class="field-label">Database Name</label>
+          <input type="text" class="text-field" id="cloudantDb" placeholder="reading-library" value="reading-library" />
+        </div>
+      </div>
+
+      <button class="btn btn-primary btn-large" onclick="saveSettings()">
+        💾 Save Settings
+      </button>
+      <div class="settings-note">
+        <p>🔒 Your keys are stored only in your browser's localStorage. Nothing is sent anywhere else.</p>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Toast Notification -->
+  <div class="toast hidden" id="toast" role="alert" aria-live="polite"></div>
+
+  <!-- Loading Overlay -->
+  <div class="loading-overlay hidden" id="loadingOverlay">
+    <div class="spinner"></div>
+    <p id="loadingText">Analyzing your text...</p>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
